@@ -1,5 +1,3 @@
-local Path = require("plenary.path")
-local Window = require("plenary.window.float")
 local strings = require("plenary.strings")
 local pickers = require("telescope.pickers")
 local finders = require("telescope.finders")
@@ -11,6 +9,7 @@ local conf = require("telescope.config").values
 local git_worktree = require("git-worktree")
 
 local force_next_deletion = false
+local default_upstream = "origin/"
 
 local get_worktree_path = function(prompt_bufnr)
     local selection = action_state.get_selected_entry(prompt_bufnr)
@@ -109,6 +108,15 @@ local create_input_prompt = function(cb)
     cb(subtree)
 end
 
+local remove_upstream_prefix = function(branch, hasUpstream)
+    if hasUpstream then
+        local local_branch = string.sub(branch, string.len(default_upstream) + 1)
+        return local_branch
+    end
+
+    return branch
+end
+
 local create_worktree = function(opts)
     opts = opts or {}
     opts.attach_mappings = function()
@@ -126,11 +134,19 @@ local create_worktree = function(opts)
                     return
                 end
 
+                local hasUpstream = string.sub(branch, 1, string.len(default_upstream)) == default_upstream
+                local local_branch = remove_upstream_prefix(branch, hasUpstream)
+
                 create_input_prompt(function(name)
                     if name == "" then
-                        name = branch
+                        name = local_branch
                     end
-                    git_worktree.create_worktree(name, branch)
+
+                    if hasUpstream then
+                        git_worktree.create_worktree(name, local_branch, default_upstream)
+                    else
+                        git_worktree.create_worktree(name, local_branch)
+                end
                 end)
             end)
 
