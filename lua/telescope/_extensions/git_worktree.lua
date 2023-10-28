@@ -9,7 +9,7 @@ local conf = require("telescope.config").values
 local git_worktree = require("git-worktree")
 
 local force_next_deletion = false
-local default_upstream = "origin/"
+local default_upstream = "origin"
 
 local get_worktree_path = function(prompt_bufnr)
     local selection = action_state.get_selected_entry(prompt_bufnr)
@@ -110,7 +110,9 @@ end
 
 local remove_upstream_prefix = function(branch, hasUpstream)
     if hasUpstream then
-        local local_branch = string.sub(branch, string.len(default_upstream) + 1)
+        -- +1 will point on the separator
+        -- +2 will point on the next symbol after separator
+        local local_branch = string.sub(branch, string.len(default_upstream) + 2)
         return local_branch
     end
 
