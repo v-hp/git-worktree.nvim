@@ -10,6 +10,14 @@ local git_worktree_root = nil
 local current_worktree_path = nil
 local on_change_callbacks = {}
 
+local is_windows = (function()
+    if jit then
+        return string.lower(jit.os) == "windows"
+    else
+        return string.lower(vim.loop.os_uname().sysname) == "windows"
+    end
+end)()
+
 M.setup_git_info = function()
     local cwd = vim.loop.cwd()
 
@@ -192,6 +200,17 @@ local function create_worktree_job(path, branch, found_branch)
     })
 end
 
+local get_worktree_path = function(path)
+    if is_windows then
+        return Path:new(path):absolute()
+    end
+
+    local worktree_path = Path:new(
+        string.format("%s" .. Path.path.sep .. "%s", git_worktree_root, path)
+    )
+
+    return worktree_path:absolute()
+end
 -- A lot of this could be cleaned up if there was better job -> job -> function
 -- communication.  That should be doable here in the near future
 local function has_worktree(path, cb)
@@ -206,16 +225,13 @@ local function has_worktree(path, cb)
                 table.insert(list_data, section)
             end
 
-            data = list_data[1]
+            data = (is_windows and list_data[1]:gsub("/", "\\")) or list_data[1]
 
             local start
             if plenary_path:is_absolute() then
                 start = data == path
             else
-                local worktree_path = Path:new(
-                    string.format("%s" .. Path.path.sep .. "%s", git_worktree_root, path)
-                )
-                worktree_path = worktree_path:absolute()
+                local worktree_path = get_worktree_path(path)
                 start = data == worktree_path
             end
 
@@ -299,7 +315,8 @@ local function create_worktree(path, branch, upstream, found_branch)
     if Path:new(path):is_absolute() then
         worktree_path = path
     else
-        worktree_path = Path:new(git_worktree_root, path):absolute()
+        worktree_path = (is_windows and Path:new(path):absolute()) or
+                                        Path:new(git_worktree_root, path):absolute()
     end
 
     local fetch = Job:new({
@@ -528,7 +545,8 @@ M.get_worktree_path = function(path)
     if Path:new(path):is_absolute() then
         return path
     else
-        return Path:new(git_worktree_root, path):absolute()
+        return (is_windows and Path:new(path):absolute()) or
+                               Path:new(git_worktree_root, path):absolute()
     end
 end
 
